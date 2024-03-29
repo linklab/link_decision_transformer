@@ -5,15 +5,6 @@ import matplotlib.pyplot as plt
 
 
 def plot(args):
-
-    # env_d4rl_name = 'halfcheetah-medium-v2'
-    # log_dir = 'dt_runs/'
-    # x_key = "num_updates"
-    # y_key = "eval_d4rl_score"
-    # y_smoothing_win = 5
-    # plot_avg = False
-    # save_fig = False
-
     env_d4rl_name = args.env_d4rl_name
     log_dir = args.log_dir
     x_key = args.x_key
@@ -76,9 +67,8 @@ def plot(args):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env_d4rl_name', type=str, default='halfcheetah-medium-v2')
+    parser.add_argument('--env_d4rl_name', type=str, default='MountainCarContinuous-v0')
     parser.add_argument('--log_dir', type=str, default='dt_runs/')
     parser.add_argument('--x_key', type=str, default='num_updates')
     parser.add_argument('--y_key', type=str, default='eval_d4rl_score')

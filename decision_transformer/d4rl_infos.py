@@ -1,15 +1,16 @@
-
 ## from infos.py from official d4rl github repo
 REF_MIN_SCORE = {
     'halfcheetah' : -280.178953,
     'walker2d' : 1.629008,
     'hopper' : -20.272305,
+    'MountainCarContinuous-v0': -50
 }
 
 REF_MAX_SCORE = {
     'halfcheetah' : 12135.0,
     'walker2d' : 4592.3,
     'hopper' : 3234.3,
+    'MountainCarContinuous-v0': 85
 }
 
 ## calculated from d4rl datasets
@@ -145,5 +146,9 @@ D4RL_DATASET_STATS = {
                              1.4986555576324463, 0.7483318448066711, 1.7953159809112549,
                              2.0530025959014893, 5.725032806396484
                 ]
+            },
+        'MountainCarContinuous-v0': {
+                'state_mean':[-5.2315164e-01, -5.5828874e-05],
+                'state_std':[0.17054477, 0.0135651]
             },
     }

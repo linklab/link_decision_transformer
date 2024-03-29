@@ -16,18 +16,19 @@ def discount_cumsum(x, gamma):
 
 
 def get_d4rl_normalized_score(score, env_name):
-    env_key = env_name.split('-')[0].lower()
-    assert env_key in REF_MAX_SCORE, f'no reference score for {env_key} env to calculate d4rl score'
-    return (score - REF_MIN_SCORE[env_key]) / (REF_MAX_SCORE[env_key] - REF_MIN_SCORE[env_key])
+    # assert env_key in REF_MAX_SCORE, f'no reference score for {env_key} env to calculate d4rl score'
+    return (score - REF_MIN_SCORE[env_name]) / (REF_MAX_SCORE[env_name] - REF_MIN_SCORE[env_name])
 
 
 def get_d4rl_dataset_stats(env_d4rl_name):
     return D4RL_DATASET_STATS[env_d4rl_name]
 
 
-def evaluate_on_env(model, device, context_len, env, rtg_target, rtg_scale,
-                    num_eval_ep=10, max_test_ep_len=1000,
-                    state_mean=None, state_std=None, render=False):
+def evaluate_on_env(
+        model, device, context_len, env, rtg_target, rtg_scale,
+        num_eval_ep=10, max_test_ep_len=1000,
+        state_mean=None, state_std=None, render=False
+):
 
     eval_batch_size = 1  # required for forward pass
 
@@ -56,16 +57,20 @@ def evaluate_on_env(model, device, context_len, env, rtg_target, rtg_scale,
     model.eval()
 
     with torch.no_grad():
-
         for _ in range(num_eval_ep):
-
             # zeros place holders
-            actions = torch.zeros((eval_batch_size, max_test_ep_len, act_dim),
-                                dtype=torch.float32, device=device)
-            states = torch.zeros((eval_batch_size, max_test_ep_len, state_dim),
-                                dtype=torch.float32, device=device)
-            rewards_to_go = torch.zeros((eval_batch_size, max_test_ep_len, 1),
-                                dtype=torch.float32, device=device)
+            actions = torch.zeros(
+                (eval_batch_size, max_test_ep_len, act_dim),
+                dtype=torch.float32, device=device
+            )
+            states = torch.zeros(
+                (eval_batch_size, max_test_ep_len, state_dim),
+                dtype=torch.float32, device=device
+            )
+            rewards_to_go = torch.zeros(
+                (eval_batch_size, max_test_ep_len, 1),
+                dtype=torch.float32, device=device
+            )
 
             # init episode
             running_state = env.reset()
@@ -73,7 +78,6 @@ def evaluate_on_env(model, device, context_len, env, rtg_target, rtg_scale,
             running_rtg = rtg_target / rtg_scale
 
             for t in range(max_test_ep_len):
-
                 total_timesteps += 1
 
                 # add state in placeholder and normalize
@@ -85,16 +89,20 @@ def evaluate_on_env(model, device, context_len, env, rtg_target, rtg_scale,
                 rewards_to_go[0, t] = running_rtg
 
                 if t < context_len:
-                    _, act_preds, _ = model.forward(timesteps[:,:context_len],
-                                                states[:,:context_len],
-                                                actions[:,:context_len],
-                                                rewards_to_go[:,:context_len])
+                    _, act_preds, _ = model.forward(
+                        timesteps[:,:context_len],
+                        states[:,:context_len],
+                        actions[:,:context_len],
+                        rewards_to_go[:,:context_len]
+                    )
                     act = act_preds[0, t].detach()
                 else:
-                    _, act_preds, _ = model.forward(timesteps[:,t-context_len+1:t+1],
-                                                states[:,t-context_len+1:t+1],
-                                                actions[:,t-context_len+1:t+1],
-                                                rewards_to_go[:,t-context_len+1:t+1])
+                    _, act_preds, _ = model.forward(
+                        timesteps[:,t-context_len+1:t+1],
+                        states[:,t-context_len+1:t+1],
+                        actions[:,t-context_len+1:t+1],
+                        rewards_to_go[:,t-context_len+1:t+1]
+                    )
                     act = act_preds[0, -1].detach()
 
                 running_state, running_reward, done, _ = env.step(act.cpu().numpy())
@@ -106,6 +114,7 @@ def evaluate_on_env(model, device, context_len, env, rtg_target, rtg_scale,
 
                 if render:
                     env.render()
+
                 if done:
                     break
 
@@ -116,9 +125,9 @@ def evaluate_on_env(model, device, context_len, env, rtg_target, rtg_scale,
 
 
 class D4RLTrajectoryDataset(Dataset):
-    def __init__(self, dataset_path, context_len, rtg_scale):
-
+    def __init__(self, dataset_path, context_len, rtg_scale, discrete_action=False):
         self.context_len = context_len
+        self.discrete_action = discrete_action
 
         # load dataset
         with open(dataset_path, 'rb') as f:
@@ -170,27 +179,44 @@ class D4RLTrajectoryDataset(Dataset):
 
             # padding with zeros
             states = torch.from_numpy(traj['observations'])
-            states = torch.cat([states,
-                                torch.zeros(([padding_len] + list(states.shape[1:])),
-                                dtype=states.dtype)],
-                               dim=0)
+            states = torch.cat(
+            [
+                    states,
+                    torch.zeros(([padding_len] + list(states.shape[1:])), dtype=states.dtype)
+                ],
+                dim=0
+            )
 
             actions = torch.from_numpy(traj['actions'])
-            actions = torch.cat([actions,
-                                torch.zeros(([padding_len] + list(actions.shape[1:])),
-                                dtype=actions.dtype)],
-                               dim=0)
+            actions = torch.cat(
+            [
+                    actions,
+                    torch.zeros(([padding_len] + list(actions.shape[1:])), dtype=actions.dtype)
+                ],
+                dim=0
+            )
 
             returns_to_go = torch.from_numpy(traj['returns_to_go'])
-            returns_to_go = torch.cat([returns_to_go,
-                                torch.zeros(([padding_len] + list(returns_to_go.shape[1:])),
-                                dtype=returns_to_go.dtype)],
-                               dim=0)
+            returns_to_go = torch.cat(
+            [
+                    returns_to_go,
+                    torch.zeros(([padding_len] + list(returns_to_go.shape[1:])), dtype=returns_to_go.dtype)
+                ],
+                dim=0
+            )
 
             timesteps = torch.arange(start=0, end=self.context_len, step=1)
 
-            traj_mask = torch.cat([torch.ones(traj_len, dtype=torch.long),
-                                   torch.zeros(padding_len, dtype=torch.long)],
-                                  dim=0)
+            traj_mask = torch.cat(
+                [torch.ones(traj_len, dtype=torch.long),
+                torch.zeros(padding_len, dtype=torch.long)],
+                dim=0
+            )
 
-        return  timesteps, states, actions, returns_to_go, traj_mask
+        return (
+            timesteps.to(dtype=torch.int32),
+            states.to(dtype=torch.float32),
+            actions.to(dtype=torch.int32) if self.discrete_action is True else actions.to(dtype=torch.float32),
+            returns_to_go.to(dtype=torch.float32),
+            traj_mask.to(dtype=torch.float32)
+        )

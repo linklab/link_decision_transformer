@@ -91,8 +91,10 @@ class Block(nn.Module):
 
 
 class DecisionTransformer(nn.Module):
-    def __init__(self, state_dim, act_dim, n_blocks, h_dim, context_len,
-                 n_heads, drop_p, max_timestep=4096):
+    def __init__(
+            self, state_dim, act_dim, n_blocks, h_dim, context_len,
+            n_heads, drop_p, max_timestep=4096, discrete_action=False
+    ):
         super().__init__()
 
         self.state_dim = state_dim
@@ -110,13 +112,15 @@ class DecisionTransformer(nn.Module):
         self.embed_rtg = torch.nn.Linear(1, h_dim)
         self.embed_state = torch.nn.Linear(state_dim, h_dim)
 
-        # # discrete actions
-        # self.embed_action = torch.nn.Embedding(act_dim, h_dim)
-        # use_action_tanh = False # False for discrete actions
-
-        # continuous actions
-        self.embed_action = torch.nn.Linear(act_dim, h_dim)
-        use_action_tanh = True # True for continuous actions
+        if discrete_action is True:
+            print("###############################")
+            # # discrete actions
+            self.embed_action = torch.nn.Embedding(act_dim, h_dim)
+            use_action_tanh = False # False for discrete actions
+        else:
+            # continuous actions
+            self.embed_action = torch.nn.Linear(act_dim, h_dim)
+            use_action_tanh = True # True for continuous actions
 
         ### prediction heads
         self.predict_rtg = torch.nn.Linear(h_dim, 1)
@@ -125,9 +129,7 @@ class DecisionTransformer(nn.Module):
             *([nn.Linear(h_dim, act_dim)] + ([nn.Tanh()] if use_action_tanh else []))
         )
 
-
     def forward(self, timesteps, states, actions, returns_to_go):
-
         B, T, _ = states.shape
 
         time_embeddings = self.embed_timestep(timesteps)

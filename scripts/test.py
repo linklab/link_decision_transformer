@@ -7,25 +7,28 @@ from decision_transformer.utils import evaluate_on_env, get_d4rl_normalized_scor
 from decision_transformer.model import DecisionTransformer
 
 def test(args):
-
     eval_dataset = args.dataset         # medium / medium-replay / medium-expert
     eval_rtg_scale = args.rtg_scale     # normalize returns to go
 
-    if args.env == 'walker2d':
-        eval_env_name = 'Walker2d-v3'
-        eval_rtg_target = 5000
-        eval_env_d4rl_name = f'walker2d-{eval_dataset}-v2'
+    # if args.env == 'walker2d':
+    #     eval_env_name = 'Walker2d-v3'
+    #     eval_rtg_target = 5000
+    #     eval_env_d4rl_name = f'walker2d-{eval_dataset}-v2'
+    #
+    # elif args.env == 'halfcheetah':
+    #     eval_env_name = 'HalfCheetah-v3'
+    #     eval_rtg_target = 6000
+    #     eval_env_d4rl_name = f'halfcheetah-{eval_dataset}-v2'
+    #
+    # elif args.env == 'hopper':
+    #     eval_env_name = 'Hopper-v3'
+    #     eval_rtg_target = 3600
+    #     eval_env_d4rl_name = f'hopper-{eval_dataset}-v2'
 
-    elif args.env == 'halfcheetah':
-        eval_env_name = 'HalfCheetah-v3'
-        eval_rtg_target = 6000
-        eval_env_d4rl_name = f'halfcheetah-{eval_dataset}-v2'
-
-    elif args.env == 'hopper':
-        eval_env_name = 'Hopper-v3'
-        eval_rtg_target = 3600
-        eval_env_d4rl_name = f'hopper-{eval_dataset}-v2'
-
+    if args.env == 'MountainCarContinuous-v0':
+        eval_env_name = 'MountainCarContinuous-v0'
+        eval_rtg_target = 85
+        eval_env_d4rl_name = eval_env_name
     else:
         raise NotImplementedError
 
@@ -73,16 +76,16 @@ def test(args):
     all_scores = []
 
     for eval_chk_pt_name in eval_chk_pt_list:
-
         eval_model = DecisionTransformer(
-        			state_dim=state_dim,
-        			act_dim=act_dim,
-        			n_blocks=n_blocks,
-        			h_dim=embed_dim,
-        			context_len=context_len,
-        			n_heads=n_heads,
-        			drop_p=dropout_p,
-        		).to(device)
+            state_dim=state_dim,
+            act_dim=act_dim,
+            n_blocks=n_blocks,
+            h_dim=embed_dim,
+            context_len=context_len,
+            n_heads=n_heads,
+            drop_p=dropout_p,
+            discrete_action=True if type(eval_env.action_space) == gym.spaces.Discrete else False
+        ).to(device)
 
         eval_chk_pt_path = os.path.join(eval_chk_pt_dir, eval_chk_pt_name)
 
@@ -92,10 +95,12 @@ def test(args):
         print("model loaded from: " + eval_chk_pt_path)
 
         # evaluate on env
-        results = evaluate_on_env(eval_model, device, context_len,
-                                eval_env, eval_rtg_target, eval_rtg_scale,
-                                num_test_eval_ep, eval_max_eval_ep_len,
-                                eval_state_mean, eval_state_std, render=render)
+        results = evaluate_on_env(
+            eval_model, device, context_len,
+            eval_env, eval_rtg_target, eval_rtg_scale,
+            num_test_eval_ep, eval_max_eval_ep_len,
+            eval_state_mean, eval_state_std, render=render
+        )
         print(results)
 
         norm_score = get_d4rl_normalized_score(results['eval/avg_reward'], eval_env_name) * 100
@@ -114,21 +119,22 @@ def test(args):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--env', type=str, default='halfcheetah')
+    parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
     parser.add_argument('--dataset', type=str, default='medium')
     parser.add_argument('--rtg_scale', type=int, default=1000)
 
     parser.add_argument('--max_eval_ep_len', type=int, default=1000)
-    parser.add_argument('--num_eval_ep', type=int, default=10)
+    parser.add_argument('--num_eval_ep', type=int, default=3)
 
-    parser.add_argument("--render", action="store_true", default=False)
+    parser.add_argument("--render", action="store_true", default=True)
 
     parser.add_argument('--chk_pt_dir', type=str, default='dt_runs/')
-    parser.add_argument('--chk_pt_name', type=str,
-            default='dt_halfcheetah-medium-v2_model_22-02-13-09-03-10_best.pt')
+    parser.add_argument(
+        '--chk_pt_name', type=str,
+        default='dt_MountainCarContinuous-v0_model_24-03-29-23-32-31_best.pt'
+    )
 
     parser.add_argument('--context_len', type=int, default=20)
     parser.add_argument('--n_blocks', type=int, default=3)
@@ -136,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_heads', type=int, default=1)
     parser.add_argument('--dropout_p', type=float, default=0.1)
 
-    parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--device', type=str, default='cpu')
 
     args = parser.parse_args()
 

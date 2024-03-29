@@ -1,7 +1,5 @@
 import argparse
 import os
-import sys
-import random
 import csv
 from datetime import datetime
 
@@ -17,28 +15,30 @@ from decision_transformer.model import DecisionTransformer
 
 
 def train(args):
-
-    dataset = args.dataset          # medium / medium-replay / medium-expert
     rtg_scale = args.rtg_scale      # normalize returns to go
 
     # use v3 env for evaluation because
     # Decision Transformer paper evaluates results on v3 envs
 
-    if args.env == 'walker2d':
-        env_name = 'Walker2d-v3'
-        rtg_target = 5000
-        env_d4rl_name = f'walker2d-{dataset}-v2'
+    # if args.env == 'walker2d':
+    #     env_name = 'Walker2d-v3'
+    #     rtg_target = 5000
+    #     env_d4rl_name = f'walker2d-{dataset}-v2'
+    #
+    # elif args.env == 'halfcheetah':
+    #     env_name = 'HalfCheetah-v3'
+    #     rtg_target = 6000
+    #     env_d4rl_name = f'halfcheetah-{dataset}-v2'
+    #
+    # elif args.env == 'hopper':
+    #     env_name = 'Hopper-v3'
+    #     rtg_target = 3600
+    #     env_d4rl_name = f'hopper-{dataset}-v2'
 
-    elif args.env == 'halfcheetah':
-        env_name = 'HalfCheetah-v3'
-        rtg_target = 6000
-        env_d4rl_name = f'halfcheetah-{dataset}-v2'
-
-    elif args.env == 'hopper':
-        env_name = 'Hopper-v3'
-        rtg_target = 3600
-        env_d4rl_name = f'hopper-{dataset}-v2'
-
+    if args.env == 'MountainCarContinuous-v0':
+        env_name = 'MountainCarContinuous-v0'
+        rtg_target = 85
+        env_d4rl_name = env_name
     else:
         raise NotImplementedError
 
@@ -61,7 +61,7 @@ def train(args):
     dropout_p = args.dropout_p          # dropout probability
 
     # load data from this file
-    dataset_path = f'{args.dataset_dir}/{env_d4rl_name}.pkl'
+    dataset_path = f'../data/save/{env_d4rl_name}.pkl'
 
     # saves model and csv in this directory
     log_dir = args.log_dir
@@ -98,52 +98,61 @@ def train(args):
     print("model save path: " + save_model_path)
     print("log csv save path: " + log_csv_path)
 
-    traj_dataset = D4RLTrajectoryDataset(dataset_path, context_len, rtg_scale)
+    env = gym.make(env_name)
+
+    traj_dataset = D4RLTrajectoryDataset(
+        dataset_path, context_len, rtg_scale,
+        discrete_action=True if type(env.action_space) == gym.spaces.Discrete else False
+    )
 
     traj_data_loader = DataLoader(
-                            traj_dataset,
-                            batch_size=batch_size,
-                            shuffle=True,
-                            pin_memory=True,
-                            drop_last=True
-                        )
+        traj_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        pin_memory=True,
+        drop_last=True
+    )
 
     data_iter = iter(traj_data_loader)
 
     ## get state stats from dataset
     state_mean, state_std = traj_dataset.get_state_stats()
-
-    env = gym.make(env_name)
+    print(state_mean)
+    print(state_std)
 
     state_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
+
+    if type(env.action_space) == gym.spaces.Discrete:
+        act_dim = 1
+    else:
+        act_dim = env.action_space.shape[0]
 
     model = DecisionTransformer(
-                state_dim=state_dim,
-                act_dim=act_dim,
-                n_blocks=n_blocks,
-                h_dim=embed_dim,
-                context_len=context_len,
-                n_heads=n_heads,
-                drop_p=dropout_p,
-            ).to(device)
+        state_dim=state_dim,
+        act_dim=act_dim,
+        n_blocks=n_blocks,
+        h_dim=embed_dim,
+        context_len=context_len,
+        n_heads=n_heads,
+        drop_p=dropout_p,
+        discrete_action=True if type(env.action_space) == gym.spaces.Discrete else False
+    ).to(device)
 
     optimizer = torch.optim.AdamW(
-                        model.parameters(),
-                        lr=lr,
-                        weight_decay=wt_decay
-                    )
+        model.parameters(),
+        lr=lr,
+        weight_decay=wt_decay
+    )
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(
-                            optimizer,
-                            lambda steps: min((steps+1)/warmup_steps, 1)
-                        )
+        optimizer,
+        lambda steps: min((steps+1)/warmup_steps, 1)
+    )
 
     max_d4rl_score = -1.0
     total_updates = 0
 
     for i_train_iter in range(max_train_iters):
-
         log_action_losses = []
         model.train()
 
@@ -154,6 +163,8 @@ def train(args):
                 data_iter = iter(traj_data_loader)
                 timesteps, states, actions, returns_to_go, traj_mask = next(data_iter)
 
+            # print(timesteps.dtype, states.dtype, actions.dtype, returns_to_go.dtype)
+
             timesteps = timesteps.to(device)    # B x T
             states = states.to(device)          # B x T x state_dim
             actions = actions.to(device)        # B x T x act_dim
@@ -162,11 +173,12 @@ def train(args):
             action_target = torch.clone(actions).detach().to(device)
 
             state_preds, action_preds, return_preds = model.forward(
-                                                            timesteps=timesteps,
-                                                            states=states,
-                                                            actions=actions,
-                                                            returns_to_go=returns_to_go
-                                                        )
+                timesteps=timesteps,
+                states=states,
+                actions=actions,
+                returns_to_go=returns_to_go
+            )
+
             # only consider non padded elements
             action_preds = action_preds.view(-1, act_dim)[traj_mask.view(-1,) > 0]
             action_target = action_target.view(-1, act_dim)[traj_mask.view(-1,) > 0]
@@ -182,8 +194,10 @@ def train(args):
             log_action_losses.append(action_loss.detach().cpu().item())
 
         # evaluate action accuracy
-        results = evaluate_on_env(model, device, context_len, env, rtg_target, rtg_scale,
-                                num_eval_ep, max_eval_ep_len, state_mean, state_std)
+        results = evaluate_on_env(
+            model, device, context_len, env, rtg_target, rtg_scale,
+            num_eval_ep, max_eval_ep_len, state_mean, state_std
+        )
 
         eval_avg_reward = results['eval/avg_reward']
         eval_avg_ep_len = results['eval/avg_ep_len']
@@ -237,19 +251,16 @@ def train(args):
     print("=" * 60)
 
 
-
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--env', type=str, default='halfcheetah')
+    parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
     parser.add_argument('--dataset', type=str, default='medium')
     parser.add_argument('--rtg_scale', type=int, default=1000)
 
     parser.add_argument('--max_eval_ep_len', type=int, default=1000)
-    parser.add_argument('--num_eval_ep', type=int, default=10)
+    parser.add_argument('--num_eval_ep', type=int, default=3)
 
-    parser.add_argument('--dataset_dir', type=str, default='data/')
     parser.add_argument('--log_dir', type=str, default='dt_runs/')
 
     parser.add_argument('--context_len', type=int, default=20)
@@ -264,9 +275,9 @@ if __name__ == "__main__":
     parser.add_argument('--warmup_steps', type=int, default=10000)
 
     parser.add_argument('--max_train_iters', type=int, default=200)
-    parser.add_argument('--num_updates_per_iter', type=int, default=100)
+    parser.add_argument('--num_updates_per_iter', type=int, default=10)
 
-    parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--device', type=str, default='cpu')
 
     args = parser.parse_args()
 
