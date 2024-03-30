@@ -84,6 +84,7 @@ def test(args):
             context_len=context_len,
             n_heads=n_heads,
             drop_p=dropout_p,
+            max_timestep=999,
             discrete_action=True if type(eval_env.action_space) == gym.spaces.Discrete else False
         ).to(device)
 

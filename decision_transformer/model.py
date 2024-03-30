@@ -8,7 +8,7 @@ https://twitter.com/MishaLaskin/status/1481767788775628801?cxt=HHwWgoCzmYD9pZApA
 and its corresponding notebook:
 https://colab.research.google.com/drive/1NUBqyboDcGte5qAJKOl8gaJC28V_73Iv?usp=sharing
 
-** the above colab notebook has a bug while applying masked_fill 
+** the above colab notebook has a bug while applying masked_fill
 which is fixed in the following code
 """
 
@@ -35,26 +35,30 @@ class MaskedCausalAttention(nn.Module):
         self.proj_drop = nn.Dropout(drop_p)
 
         ones = torch.ones((max_T, max_T))
+
+        # Returns the lower triangular part of the matrix (2-D tensor) or batch of matrices input,
+        # the other elements of the result tensor out are set to 0.
         mask = torch.tril(ones).view(1, 1, max_T, max_T)
 
-        # register buffer makes sure mask does not get updated
-        # during backpropagation
-        self.register_buffer('mask',mask)
+        # register buffer makes sure mask does not get updated during backpropagation
+        self.register_buffer('mask', mask)
 
     def forward(self, x):
-        B, T, C = x.shape # batch size, seq length, h_dim * n_heads
+        B, T, C = x.shape  # batch size, seq length, h_dim * n_heads
 
         N, D = self.n_heads, C // self.n_heads # N = num heads, D = attention dim
 
         # rearrange q, k, v as (B, N, T, D)
-        q = self.q_net(x).view(B, T, N, D).transpose(1,2)
-        k = self.k_net(x).view(B, T, N, D).transpose(1,2)
-        v = self.v_net(x).view(B, T, N, D).transpose(1,2)
+        q = self.q_net(x).view(B, T, N, D).transpose(1, 2)
+        k = self.k_net(x).view(B, T, N, D).transpose(1, 2)
+        v = self.v_net(x).view(B, T, N, D).transpose(1, 2)
 
         # weights (B, N, T, T)
-        weights = q @ k.transpose(2,3) / math.sqrt(D)
+        weights = q @ k.transpose(2, 3) / math.sqrt(D)
+
         # causal mask applied to weights
-        weights = weights.masked_fill(self.mask[...,:T,:T] == 0, float('-inf'))
+        weights = weights.masked_fill(self.mask[..., :T, :T] == 0, float('-inf'))
+
         # normalize weights, all -inf -> 0 after softmax
         normalized_weights = F.softmax(weights, dim=-1)
 
@@ -69,13 +73,13 @@ class MaskedCausalAttention(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, h_dim, max_T, n_heads, drop_p):
+    def __init__(self, h_dim, max_T, n_heads, drop_p):  # max_T = 3 * context_len = 3 * 20 = 60
         super().__init__()
         self.attention = MaskedCausalAttention(h_dim, max_T, n_heads, drop_p)
         self.mlp = nn.Sequential(
-                nn.Linear(h_dim, 4*h_dim),
+                nn.Linear(h_dim, 4 * h_dim),
                 nn.GELU(),
-                nn.Linear(4*h_dim, h_dim),
+                nn.Linear(4 * h_dim, h_dim),
                 nn.Dropout(drop_p),
             )
         self.ln1 = nn.LayerNorm(h_dim)
@@ -93,7 +97,7 @@ class Block(nn.Module):
 class DecisionTransformer(nn.Module):
     def __init__(
             self, state_dim, act_dim, n_blocks, h_dim, context_len,
-            n_heads, drop_p, max_timestep=4096, discrete_action=False
+            n_heads, drop_p, max_timestep=999, discrete_action=False
     ):
         super().__init__()
 
@@ -102,8 +106,8 @@ class DecisionTransformer(nn.Module):
         self.h_dim = h_dim
 
         ### transformer blocks
-        input_seq_len = 3 * context_len
-        blocks = [Block(h_dim, input_seq_len, n_heads, drop_p) for _ in range(n_blocks)]
+        max_T = 3 * context_len  # input_seq_length
+        blocks = [Block(h_dim, max_T, n_heads, drop_p) for _ in range(n_blocks)]  # n_blocks = 3
         self.transformer = nn.Sequential(*blocks)
 
         ### projection heads (project to embedding)
@@ -130,7 +134,7 @@ class DecisionTransformer(nn.Module):
         )
 
     def forward(self, timesteps, states, actions, returns_to_go):
-        B, T, _ = states.shape
+        B, T, _ = states.shape   # 64, 20 or 1, 20
 
         time_embeddings = self.embed_timestep(timesteps)
 
@@ -139,16 +143,31 @@ class DecisionTransformer(nn.Module):
         action_embeddings = self.embed_action(actions) + time_embeddings
         returns_embeddings = self.embed_rtg(returns_to_go) + time_embeddings
 
+        # time_embeddings.shape:    64, 20, 128
+        # state_embeddings.shape:   64, 20, 128
+        # action_embeddings.shape:  64, 20, 128
+        # returns_embeddings.shape: 64, 20, 128
+
         # stack rtg, states and actions and reshape sequence as
         # (r_0, s_0, a_0, r_1, s_1, a_1, r_2, s_2, a_2 ...)
-        h = torch.stack(
-            (returns_embeddings, state_embeddings, action_embeddings), dim=1
-        ).permute(0, 2, 1, 3).reshape(B, 3 * T, self.h_dim)
 
-        h = self.embed_ln(h)
+        # h_stack.shape: 64, 3, 20, 128
+        h_stack = torch.stack(
+            (returns_embeddings, state_embeddings, action_embeddings), dim=1
+        )
+
+        # h_permute.shape: 64, 20, 3, 128
+        h_permute = h_stack.permute(0, 2, 1, 3)
+
+        # h_reshape.shape: 64, 60, 128
+        h_reshape = h_permute.reshape(B, 3 * T, self.h_dim)
+
+        # h_reshape.shape: 64, 60, 128
+        h_ln = self.embed_ln(h_reshape)
 
         # transformer and prediction
-        h = self.transformer(h)
+        # h.shape: 64, 60, 128
+        h = self.transformer(h_ln)
 
         # get h reshaped such that its size = (B x 3 x T x h_dim) and
         # h[:, 0, t] is conditioned on the input sequence r_0, s_0, a_0 ... r_t
@@ -157,11 +176,12 @@ class DecisionTransformer(nn.Module):
         # that is, for each timestep (t) we have 3 output embeddings from the transformer,
         # each conditioned on all previous timesteps plus 
         # the 3 input variables at that timestep (r_t, s_t, a_t) in sequence.
+        # h.shape: 64, 3, 20, 128
         h = h.reshape(B, T, 3, self.h_dim).permute(0, 2, 1, 3)
 
         # get predictions
-        return_preds = self.predict_rtg(h[:,2])     # predict next rtg given r, s, a
-        state_preds = self.predict_state(h[:,2])    # predict next state given r, s, a
-        action_preds = self.predict_action(h[:,1])  # predict action given r, s
+        return_preds = self.predict_rtg(h[:, 2])     # predict next rtg given r, s, a
+        state_preds = self.predict_state(h[:, 2])    # predict next state given r, s, a
+        action_preds = self.predict_action(h[:, 1])  # predict action given r, s
 
         return state_preds, action_preds, return_preds

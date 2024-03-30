@@ -129,7 +129,7 @@ class D4RLTrajectoryDataset(Dataset):
         self.context_len = context_len
         self.discrete_action = discrete_action
 
-        # load dataset
+        # load dataset, where each episode is stored
         with open(dataset_path, 'rb') as f:
             self.trajectories = pickle.load(f)
 
@@ -163,7 +163,8 @@ class D4RLTrajectoryDataset(Dataset):
         traj_len = traj['observations'].shape[0]
 
         if traj_len >= self.context_len:
-            # sample random index to slice trajectory
+            # [NOTE]
+            # 에피소드 길이가 self.context_len 보다 길면 임의의 위치에서 self.context_len 길이만큼 잘라서 리턴
             si = random.randint(0, traj_len - self.context_len)
 
             states = torch.from_numpy(traj['observations'][si : si + self.context_len])
@@ -175,6 +176,9 @@ class D4RLTrajectoryDataset(Dataset):
             traj_mask = torch.ones(self.context_len, dtype=torch.long)
 
         else:
+            # [NOTE]
+            # 에피소드 길이가 self.context_len 보다 짧으면 전체 에피소드 뒤에 zero-padding을 하여
+            # self.context_len 길이로 일관되게 맞춤
             padding_len = self.context_len - traj_len
 
             # padding with zeros

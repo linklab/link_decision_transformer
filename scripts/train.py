@@ -72,7 +72,7 @@ def train(args):
     device = torch.device(args.device)
 
     start_time = datetime.now().replace(microsecond=0)
-    start_time_str = start_time.strftime("%y-%m-%d-%H-%M-%S")
+    start_time_str = start_time.strftime("%y-%m-%d %H:%M:%S")
 
     prefix = "dt_" + env_d4rl_name
 
@@ -84,8 +84,9 @@ def train(args):
     log_csv_path = os.path.join(log_dir, log_csv_name)
 
     csv_writer = csv.writer(open(log_csv_path, 'a', 1))
-    csv_header = (["duration", "num_updates", "action_loss",
-                   "eval_avg_reward", "eval_avg_ep_len", "eval_d4rl_score"])
+    csv_header = ([
+        "duration", "num_updates", "action_loss", "eval_avg_reward", "eval_avg_ep_len", "eval_d4rl_score"
+    ])
 
     csv_writer.writerow(csv_header)
 
@@ -100,29 +101,34 @@ def train(args):
 
     env = gym.make(env_name)
 
+    discrete_action = True if type(env.action_space) == gym.spaces.Discrete else False
+
+    # 각 데이터 단위는 에피소드
+    # 하지만, 에피소드 길이와 context_len를 비교하면서 결국 각 데이터 단위는 context_len 길이로 맞추어서 관리됨
+    # context_len는 논문에서 K 임.
+    # 논문의 문장:
+    # We feed the last K timesteps into Decision Transformer, for a total of 3K tokens (one for each modality: return-to-go, state, or action)
+    # The tokens are then processed by a GPT [9] model, which predicts future action tokens via autoregressive modeling.
     traj_dataset = D4RLTrajectoryDataset(
-        dataset_path, context_len, rtg_scale,
-        discrete_action=True if type(env.action_space) == gym.spaces.Discrete else False
+        dataset_path, context_len, rtg_scale, discrete_action=discrete_action
     )
 
+    # batch_size 길이의 데이터 뭉치를 관리함.
+    # 즉, batch_size=64 이면, 각 iteration마다 64개의 에피소드 뭉치가 리턴됨
+    # 이 때, 각 64개의 에피소드는 context_len 길이로 일관되게 맞추어 있음
     traj_data_loader = DataLoader(
-        traj_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        pin_memory=True,
-        drop_last=True
+        traj_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True
     )
-
     data_iter = iter(traj_data_loader)
 
     ## get state stats from dataset
     state_mean, state_std = traj_dataset.get_state_stats()
-    print(state_mean)
-    print(state_std)
+    print("state_mean: {0}".format(state_mean))
+    print("state_std: {0}".format(state_std))
 
     state_dim = env.observation_space.shape[0]
 
-    if type(env.action_space) == gym.spaces.Discrete:
+    if discrete_action:
         act_dim = 1
     else:
         act_dim = env.action_space.shape[0]
@@ -135,18 +141,14 @@ def train(args):
         context_len=context_len,
         n_heads=n_heads,
         drop_p=dropout_p,
-        discrete_action=True if type(env.action_space) == gym.spaces.Discrete else False
+        max_timestep=999,
+        discrete_action=discrete_action
     ).to(device)
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=lr,
-        weight_decay=wt_decay
-    )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wt_decay)
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lambda steps: min((steps+1)/warmup_steps, 1)
+        optimizer, lambda steps: min((steps + 1) / warmup_steps, 1)
     )
 
     max_d4rl_score = -1.0
@@ -163,13 +165,18 @@ def train(args):
                 data_iter = iter(traj_data_loader)
                 timesteps, states, actions, returns_to_go, traj_mask = next(data_iter)
 
+            # timesteps.shape:  64, 20
+            # states.shape:     64, 20, 2
+            # actions.shape:    64, 20, 1
+            # returns_to_go:    64, 20
             # print(timesteps.dtype, states.dtype, actions.dtype, returns_to_go.dtype)
 
-            timesteps = timesteps.to(device)    # B x T
-            states = states.to(device)          # B x T x state_dim
-            actions = actions.to(device)        # B x T x act_dim
-            returns_to_go = returns_to_go.to(device).unsqueeze(dim=-1) # B x T x 1
-            traj_mask = traj_mask.to(device)    # B x T
+            timesteps = timesteps.to(device)                            # B x K
+            states = states.to(device)                                  # B x K x state_dim
+            actions = actions.to(device)                                # B x K x act_dim
+            returns_to_go = returns_to_go.to(device).unsqueeze(dim=-1)  # B x K x 1
+            traj_mask = traj_mask.to(device)                            # B x K
+
             action_target = torch.clone(actions).detach().to(device)
 
             state_preds, action_preds, return_preds = model.forward(
@@ -272,7 +279,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--wt_decay', type=float, default=1e-4)
-    parser.add_argument('--warmup_steps', type=int, default=10000)
+    parser.add_argument('--warmup_steps', type=int, default=10_000)
 
     parser.add_argument('--max_train_iters', type=int, default=200)
     parser.add_argument('--num_updates_per_iter', type=int, default=10)

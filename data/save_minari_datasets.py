@@ -33,7 +33,7 @@ def get_dataset(env_name, dataset_id):
     )
     episodes = []
 
-    for idx, episode_data in enumerate(dataset):
+    for episode_data in dataset:
         episode_dict = collections.defaultdict(list)
         episode_dict['observations'] = np.array(episode_data.observations)[:-1]
         episode_dict['actions'] = np.array(episode_data.actions)

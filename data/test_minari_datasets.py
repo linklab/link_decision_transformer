@@ -30,6 +30,7 @@ dataset = env.create_dataset(
 )
 
 print(minari.list_local_datasets())
+print()
 
 dataset2 = minari.load_dataset("MountainCarContinuous-v0-medium-v0")
 
