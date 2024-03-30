@@ -26,8 +26,8 @@ def get_d4rl_dataset_stats(env_d4rl_name):
 
 def evaluate_on_env(
         model, device, context_len, env, rtg_target, rtg_scale,
-        num_eval_ep=10, max_test_ep_len=1000,
-        state_mean=None, state_std=None, render=False, discrete_action=False
+        num_eval_ep=10, max_test_ep_len=999,
+        state_mean=None, state_std=None, discrete_action=False
 ):
     eval_batch_size = 1  # required for forward pass
 
@@ -84,7 +84,7 @@ def evaluate_on_env(
                 states[0, t] = torch.from_numpy(running_state).to(device)
                 states[0, t] = (states[0, t] - state_mean) / state_std
 
-                # calcualate running rtg and add it in placeholder
+                # calculate running rtg and add it in placeholder
                 running_rtg = running_rtg - (running_reward / rtg_scale)
                 rewards_to_go[0, t] = running_rtg
 
@@ -111,9 +111,6 @@ def evaluate_on_env(
                 actions[0, t] = act
 
                 total_reward += running_reward
-
-                if render:
-                    env.render()
 
                 if terminated or truncated:
                     break

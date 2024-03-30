@@ -1,6 +1,6 @@
 import argparse
 import os
-import gym
+import gymnasium as gym
 import torch
 import numpy as np
 from decision_transformer.utils import evaluate_on_env, get_d4rl_normalized_score, get_d4rl_dataset_stats
@@ -68,10 +68,16 @@ def test(args):
     eval_state_mean = np.array(env_data_stats['state_mean'])
     eval_state_std = np.array(env_data_stats['state_std'])
 
-    eval_env = gym.make(eval_env_name)
+    eval_env = gym.make(eval_env_name, render_mode="human")
+
+    discrete_action = True if type(eval_env.action_space) == gym.spaces.Discrete else False
 
     state_dim = eval_env.observation_space.shape[0]
-    act_dim = eval_env.action_space.shape[0]
+
+    if discrete_action is True:
+        act_dim = 1
+    else:
+        act_dim = eval_env.action_space.shape[0]
 
     all_scores = []
 
@@ -85,7 +91,7 @@ def test(args):
             n_heads=n_heads,
             drop_p=dropout_p,
             max_timestep=999,
-            discrete_action=True if type(eval_env.action_space) == gym.spaces.Discrete else False
+            discrete_action=discrete_action
         ).to(device)
 
         eval_chk_pt_path = os.path.join(eval_chk_pt_dir, eval_chk_pt_name)
@@ -100,22 +106,23 @@ def test(args):
             eval_model, device, context_len,
             eval_env, eval_rtg_target, eval_rtg_scale,
             num_test_eval_ep, eval_max_eval_ep_len,
-            eval_state_mean, eval_state_std, render=render
+            eval_state_mean, eval_state_std,
+            discrete_action=discrete_action
         )
         print(results)
 
-        norm_score = get_d4rl_normalized_score(results['eval/avg_reward'], eval_env_name) * 100
-        print("normalized d4rl score: " + format(norm_score, ".5f"))
+        #norm_score = get_d4rl_normalized_score(results['eval/avg_reward'], eval_env_name) * 100
+        print("normalized test score: " + format(results['eval/avg_score'], ".5f"))
 
-        all_scores.append(norm_score)
+        all_scores.append(results['eval/avg_score'])
 
     print("=" * 60)
     all_scores = np.array(all_scores)
     print("evaluated on env: " + eval_env_name)
     print("total num of checkpoints evaluated: " + str(len(eval_chk_pt_list)))
-    print("d4rl score mean: " + format(all_scores.mean(), ".5f"))
-    print("d4rl score std: " + format(all_scores.std(), ".5f"))
-    print("d4rl score var: " + format(all_scores.var(), ".5f"))
+    print("test score mean: " + format(all_scores.mean(), ".5f"))
+    print("test score std: " + format(all_scores.std(), ".5f"))
+    print("test score var: " + format(all_scores.var(), ".5f"))
     print("=" * 60)
 
 
@@ -124,9 +131,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
     parser.add_argument('--dataset', type=str, default='medium')
-    parser.add_argument('--rtg_scale', type=int, default=1000)
+    parser.add_argument('--rtg_scale', type=int, default=100)
 
-    parser.add_argument('--max_eval_ep_len', type=int, default=1000)
+    parser.add_argument('--max_eval_ep_len', type=int, default=999)
     parser.add_argument('--num_eval_ep', type=int, default=3)
 
     parser.add_argument("--render", action="store_true", default=True)
@@ -134,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument('--chk_pt_dir', type=str, default='dt_runs/')
     parser.add_argument(
         '--chk_pt_name', type=str,
-        default='dt_MountainCarContinuous-v0_model_24-03-29-23-32-31_best.pt'
+        default='dt_MountainCarContinuous-v0_model_24-03-30 19:30:30_best.pt'
     )
 
     parser.add_argument('--context_len', type=int, default=20)

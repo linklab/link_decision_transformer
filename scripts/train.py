@@ -15,11 +15,8 @@ from decision_transformer.model import DecisionTransformer
 
 
 def train(args):
-    rtg_scale = args.rtg_scale      # normalize returns to go
-
     # use v3 env for evaluation because
     # Decision Transformer paper evaluates results on v3 envs
-
     # if args.env == 'walker2d':
     #     env_name = 'Walker2d-v3'
     #     rtg_target = 5000
@@ -41,6 +38,8 @@ def train(args):
         env_d4rl_name = env_name
     else:
         raise NotImplementedError
+
+    rtg_scale = args.rtg_scale              # normalize returns to go
 
     max_eval_ep_len = args.max_eval_ep_len  # max len of one episode
     num_eval_ep = args.num_eval_ep          # num of evaluation episodes
@@ -141,7 +140,7 @@ def train(args):
         context_len=context_len,
         n_heads=n_heads,
         drop_p=dropout_p,
-        max_timestep=1000,
+        max_timestep=999,
         discrete_action=discrete_action
     ).to(device)
 
@@ -204,7 +203,7 @@ def train(args):
         results = evaluate_on_env(
             model, device, context_len, env, rtg_target, rtg_scale,
             num_eval_ep, max_eval_ep_len, state_mean, state_std,
-            render=False, discrete_action=discrete_action
+            discrete_action=discrete_action
         )
 
         eval_avg_score = results['eval/avg_score']
@@ -269,9 +268,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
     parser.add_argument('--dataset', type=str, default='medium')
-    parser.add_argument('--rtg_scale', type=int, default=1000)
+    parser.add_argument('--rtg_scale', type=int, default=100)
 
-    parser.add_argument('--max_eval_ep_len', type=int, default=1000)
+    parser.add_argument('--max_eval_ep_len', type=int, default=999)
     parser.add_argument('--num_eval_ep', type=int, default=3)
 
     parser.add_argument('--log_dir', type=str, default='dt_runs/')
