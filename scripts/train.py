@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 
 import numpy as np
-import gym
+import gymnasium as gym
 
 import torch
 import torch.nn.functional as F
@@ -85,7 +85,7 @@ def train(args):
 
     csv_writer = csv.writer(open(log_csv_path, 'a', 1))
     csv_header = ([
-        "duration", "num_updates", "action_loss", "eval_avg_reward", "eval_avg_ep_len", "eval_d4rl_score"
+        "duration", "num_updates", "action_loss", "eval_avg_score", "eval_avg_ep_len", "eval_d4rl_score"
     ])
 
     csv_writer.writerow(csv_header)
@@ -151,7 +151,7 @@ def train(args):
         optimizer, lambda steps: min((steps + 1) / warmup_steps, 1)
     )
 
-    max_d4rl_score = -1.0
+    max_eval_score = -1.0 * np.inf
     total_updates = 0
 
     for i_train_iter in range(max_train_iters):
@@ -203,45 +203,51 @@ def train(args):
         # evaluate action accuracy
         results = evaluate_on_env(
             model, device, context_len, env, rtg_target, rtg_scale,
-            num_eval_ep, max_eval_ep_len, state_mean, state_std, discrete_action
+            num_eval_ep, max_eval_ep_len, state_mean, state_std,
+            render=False, discrete_action=discrete_action
         )
 
-        eval_avg_reward = results['eval/avg_reward']
+        eval_avg_score = results['eval/avg_score']
         eval_avg_ep_len = results['eval/avg_ep_len']
-        eval_d4rl_score = get_d4rl_normalized_score(results['eval/avg_reward'], env_name) * 100
+        #eval_d4rl_score = get_d4rl_normalized_score(results['eval/avg_reward'], env_name) * 100
 
         mean_action_loss = np.mean(log_action_losses)
         time_elapsed = str(datetime.now().replace(microsecond=0) - start_time)
 
         total_updates += num_updates_per_iter
 
-        log_str = ("=" * 60 + '\n' +
-                "time elapsed: " + time_elapsed  + '\n' +
-                "num of updates: " + str(total_updates) + '\n' +
-                "action loss: " +  format(mean_action_loss, ".5f") + '\n' +
-                "eval avg reward: " + format(eval_avg_reward, ".5f") + '\n' +
-                "eval avg ep len: " + format(eval_avg_ep_len, ".5f") + '\n' +
-                "eval d4rl score: " + format(eval_d4rl_score, ".5f")
-            )
+        log_str = (
+            "=" * 60 + '\n'
+            + "time elapsed: " + time_elapsed + '\n'
+            + "iteration: {0}/{1}".format(i_train_iter + 1, max_train_iters) + '\n'
+            + "num of updates: " + str(total_updates) + '\n'
+            + "action loss: " +  format(mean_action_loss, ".5f") + '\n'
+            + "eval avg score: " + format(eval_avg_score, ".5f") + '\n'
+            + "eval avg ep len: " + format(eval_avg_ep_len, ".5f")
+            #+ "eval d4rl score: " + format(eval_d4rl_score, ".5f")
+        )
 
         print(log_str)
 
-        log_data = [time_elapsed, total_updates, mean_action_loss,
-                    eval_avg_reward, eval_avg_ep_len,
-                    eval_d4rl_score]
+        log_data = [
+            time_elapsed, total_updates, mean_action_loss,
+            eval_avg_score, eval_avg_ep_len,
+            # eval_d4rl_score
+        ]
 
         csv_writer.writerow(log_data)
 
-        # save model
-        print("max d4rl score: " + format(max_d4rl_score, ".5f"))
-        if eval_d4rl_score >= max_d4rl_score:
-            print("saving max d4rl score model at: " + save_best_model_path)
+        if eval_avg_score >= max_eval_score:
+            print("!!! saving max eval score model at: " + save_best_model_path)
             torch.save(model.state_dict(), save_best_model_path)
-            max_d4rl_score = eval_d4rl_score
+            print("!!! max eval score: {0:.5f} --> {1:.5f}".format(max_eval_score, eval_avg_score))
+            max_eval_score = eval_avg_score
+        else:
+            print("max eval score: " + format(max_eval_score, ".5f"))
 
-        print("saving current model at: " + save_model_path)
-        torch.save(model.state_dict(), save_model_path)
-
+        # # save model
+        # print("saving current model at: " + save_model_path)
+        # torch.save(model.state_dict(), save_model_path)
 
     print("=" * 60)
     print("finished training!")
@@ -252,8 +258,8 @@ def train(args):
     print("started training at: " + start_time_str)
     print("finished training at: " + end_time_str)
     print("total training time: " + time_elapsed)
-    print("max d4rl score: " + format(max_d4rl_score, ".5f"))
-    print("saved max d4rl score model at: " + save_best_model_path)
+    print("max eval score: " + format(max_eval_score, ".5f"))
+    print("saved max eval score model at: " + save_best_model_path)
     print("saved last updated model at: " + save_model_path)
     print("=" * 60)
 
