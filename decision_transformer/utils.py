@@ -27,9 +27,8 @@ def get_d4rl_dataset_stats(env_d4rl_name):
 def evaluate_on_env(
         model, device, context_len, env, rtg_target, rtg_scale,
         num_eval_ep=10, max_test_ep_len=1000,
-        state_mean=None, state_std=None, render=False
+        state_mean=None, state_std=None, render=False, discrete_action=False
 ):
-
     eval_batch_size = 1  # required for forward pass
 
     results = {}
@@ -37,7 +36,11 @@ def evaluate_on_env(
     total_timesteps = 0
 
     state_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
+
+    if discrete_action is True:
+        act_dim = 1
+    else:
+        act_dim = env.action_space.shape[0]
 
     if state_mean is None:
         state_mean = torch.zeros((state_dim,)).to(device)
@@ -60,16 +63,13 @@ def evaluate_on_env(
         for _ in range(num_eval_ep):
             # zeros place holders
             actions = torch.zeros(
-                (eval_batch_size, max_test_ep_len, act_dim),
-                dtype=torch.float32, device=device
+                (eval_batch_size, max_test_ep_len, act_dim), dtype=torch.float32, device=device
             )
             states = torch.zeros(
-                (eval_batch_size, max_test_ep_len, state_dim),
-                dtype=torch.float32, device=device
+                (eval_batch_size, max_test_ep_len, state_dim), dtype=torch.float32, device=device
             )
             rewards_to_go = torch.zeros(
-                (eval_batch_size, max_test_ep_len, 1),
-                dtype=torch.float32, device=device
+                (eval_batch_size, max_test_ep_len, 1), dtype=torch.float32, device=device
             )
 
             # init episode
@@ -89,7 +89,7 @@ def evaluate_on_env(
                 rewards_to_go[0, t] = running_rtg
 
                 if t < context_len:
-                    _, act_preds, _ = model.forward(
+                    act_preds, _, _ = model.forward(
                         timesteps[:,:context_len],
                         states[:,:context_len],
                         actions[:,:context_len],
@@ -97,7 +97,7 @@ def evaluate_on_env(
                     )
                     act = act_preds[0, t].detach()
                 else:
-                    _, act_preds, _ = model.forward(
+                    act_preds, _, _ = model.forward(
                         timesteps[:,t-context_len+1:t+1],
                         states[:,t-context_len+1:t+1],
                         actions[:,t-context_len+1:t+1],

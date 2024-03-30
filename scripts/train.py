@@ -141,7 +141,7 @@ def train(args):
         context_len=context_len,
         n_heads=n_heads,
         drop_p=dropout_p,
-        max_timestep=999,
+        max_timestep=1000,
         discrete_action=discrete_action
     ).to(device)
 
@@ -179,7 +179,7 @@ def train(args):
 
             action_target = torch.clone(actions).detach().to(device)
 
-            state_preds, action_preds, return_preds = model.forward(
+            action_preds, _, _ = model.forward(
                 timesteps=timesteps,
                 states=states,
                 actions=actions,
@@ -203,7 +203,7 @@ def train(args):
         # evaluate action accuracy
         results = evaluate_on_env(
             model, device, context_len, env, rtg_target, rtg_scale,
-            num_eval_ep, max_eval_ep_len, state_mean, state_std
+            num_eval_ep, max_eval_ep_len, state_mean, state_std, discrete_action
         )
 
         eval_avg_reward = results['eval/avg_reward']

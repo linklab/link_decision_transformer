@@ -41,6 +41,7 @@ class MaskedCausalAttention(nn.Module):
         mask = torch.tril(ones).view(1, 1, max_T, max_T)
 
         # register buffer makes sure mask does not get updated during backpropagation
+        # self.mask 로 mask를 접근할 수 있게 됨
         self.register_buffer('mask', mask)
 
     def forward(self, x):
@@ -180,8 +181,10 @@ class DecisionTransformer(nn.Module):
         h = h.reshape(B, T, 3, self.h_dim).permute(0, 2, 1, 3)
 
         # get predictions
-        return_preds = self.predict_rtg(h[:, 2])     # predict next rtg given r, s, a
-        state_preds = self.predict_state(h[:, 2])    # predict next state given r, s, a
         action_preds = self.predict_action(h[:, 1])  # predict action given r, s
 
-        return state_preds, action_preds, return_preds
+        # not used for now...
+        return_preds = self.predict_rtg(h[:, 2])     # predict next rtg given r, s, a
+        state_preds = self.predict_state(h[:, 2])    # predict next state given r, s, a
+
+        return action_preds, state_preds, return_preds
