@@ -34,14 +34,19 @@ def train(args):
 
     if args.env == 'MountainCarContinuous-v0':
         env_name = 'MountainCarContinuous-v0'
+        rtg_scale = 100
         rtg_target = 85
+        max_eval_ep_len = 999
+        env_d4rl_name = env_name
+    elif args.env == 'BipedalWalker-v3':
+        env_name = 'BipedalWalker-v3'
+        rtg_scale = 300
+        rtg_target = 300
+        max_eval_ep_len = 2000
         env_d4rl_name = env_name
     else:
         raise NotImplementedError
 
-    rtg_scale = args.rtg_scale              # normalize returns to go
-
-    max_eval_ep_len = args.max_eval_ep_len  # max len of one episode
     num_eval_ep = args.num_eval_ep          # num of evaluation episodes
 
     batch_size = args.batch_size            # training batch size
@@ -266,11 +271,9 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
+    # parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
+    parser.add_argument('--env', type=str, default='BipedalWalker-v3')
     parser.add_argument('--dataset', type=str, default='medium')
-    parser.add_argument('--rtg_scale', type=int, default=100)
-
-    parser.add_argument('--max_eval_ep_len', type=int, default=999)
     parser.add_argument('--num_eval_ep', type=int, default=3)
 
     parser.add_argument('--log_dir', type=str, default='dt_runs/')

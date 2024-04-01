@@ -26,13 +26,20 @@ def test(args):
 
     if args.env == 'MountainCarContinuous-v0':
         eval_env_name = 'MountainCarContinuous-v0'
+        eval_rtg_scale = 100
         eval_rtg_target = 85
+        eval_max_eval_ep_len = 999
+        eval_env_d4rl_name = eval_env_name
+    elif args.env == 'BipedalWalker-v3':
+        eval_env_name = 'BipedalWalker-v3'
+        eval_rtg_scale = 300
+        eval_rtg_target = 300
+        eval_max_eval_ep_len = 2000
         eval_env_d4rl_name = eval_env_name
     else:
         raise NotImplementedError
 
     num_test_eval_ep = args.num_eval_ep         # num of evaluation episodes
-    eval_max_eval_ep_len = args.max_eval_ep_len # max len of one episode
 
     context_len = args.context_len      # K in decision transformer
     n_blocks = args.n_blocks            # num of transformer blocks
@@ -126,10 +133,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
-    parser.add_argument('--dataset', type=str, default='medium')
-    parser.add_argument('--rtg_scale', type=int, default=100)
+    # parser.add_argument('--env', type=str, default='BipedalWalker-v3')
 
-    parser.add_argument('--max_eval_ep_len', type=int, default=999)
     parser.add_argument('--num_eval_ep', type=int, default=3)
 
     parser.add_argument('--chk_pt_dir', type=str, default='dt_runs/')

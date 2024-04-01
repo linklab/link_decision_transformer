@@ -142,9 +142,9 @@ class D4RLTrajectoryDataset(Dataset):
             states.append(traj['observations'])
             # calculate returns to go and rescale them
             traj['returns_to_go'] = discount_cumsum(traj['rewards'], 1.0) / rtg_scale
-            if (traj['rewards'] > 0.0).sum() > 0:
-                print(traj['rewards'] > 0.0, "!!!!")
-                print(traj['rewards'], "!!!!")
+            # if (traj['rewards'] > 0.0).sum() > 0:
+            #     print(traj['rewards'] > 0.0, "!!!!")
+            #     print(traj['rewards'], "!!!!")
 
         # used for input normalization
         states = np.concatenate(states, axis=0)
