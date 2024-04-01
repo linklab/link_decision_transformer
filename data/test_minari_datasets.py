@@ -11,12 +11,15 @@ env = DataCollector(env, record_infos=True, max_buffer_steps=100000)
 
 total_episodes = 100
 
-for _ in range(total_episodes):
+for episode in range(total_episodes):
     env.reset(seed=123)
     while True:
         # random action policy
         action = env.action_space.sample()
         obs, rew, terminated, truncated, info = env.step(action)
+
+        if terminated:
+            print(episode, terminated, truncated, rew, "!!!!!")
 
         if terminated or truncated:
             break

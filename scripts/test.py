@@ -7,7 +7,6 @@ from decision_transformer.utils import evaluate_on_env, get_d4rl_normalized_scor
 from decision_transformer.model import DecisionTransformer
 
 def test(args):
-    eval_dataset = args.dataset         # medium / medium-replay / medium-expert
     eval_rtg_scale = args.rtg_scale     # normalize returns to go
 
     # if args.env == 'walker2d':
@@ -31,8 +30,6 @@ def test(args):
         eval_env_d4rl_name = eval_env_name
     else:
         raise NotImplementedError
-
-    render = args.render                # render the env frames
 
     num_test_eval_ep = args.num_eval_ep         # num of evaluation episodes
     eval_max_eval_ep_len = args.max_eval_ep_len # max len of one episode
@@ -122,7 +119,6 @@ def test(args):
     print("total num of checkpoints evaluated: " + str(len(eval_chk_pt_list)))
     print("test score mean: " + format(all_scores.mean(), ".5f"))
     print("test score std: " + format(all_scores.std(), ".5f"))
-    print("test score var: " + format(all_scores.var(), ".5f"))
     print("=" * 60)
 
 
@@ -136,12 +132,10 @@ if __name__ == "__main__":
     parser.add_argument('--max_eval_ep_len', type=int, default=999)
     parser.add_argument('--num_eval_ep', type=int, default=3)
 
-    parser.add_argument("--render", action="store_true", default=True)
-
     parser.add_argument('--chk_pt_dir', type=str, default='dt_runs/')
     parser.add_argument(
         '--chk_pt_name', type=str,
-        default='dt_MountainCarContinuous-v0_model_24-03-30 19:30:30_best.pt'
+        default='dt_MountainCarContinuous-v0_model_24-03-30 22:23:13_best.pt'
     )
 
     parser.add_argument('--context_len', type=int, default=20)

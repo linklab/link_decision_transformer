@@ -148,7 +148,7 @@ D4RL_DATASET_STATS = {
                 ]
             },
         'MountainCarContinuous-v0': {
-                'state_mean':[-5.2315164e-01, -5.5828874e-05],
-                'state_std':[0.17054477, 0.0135651]
+                'state_mean':[-0.523005 -0.000051],
+                'state_std':[0.175667, 0.013834]
             },
     }

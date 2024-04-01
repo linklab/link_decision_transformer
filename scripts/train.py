@@ -287,7 +287,7 @@ if __name__ == "__main__":
     parser.add_argument('--warmup_steps', type=int, default=10_000)
 
     parser.add_argument('--max_train_iters', type=int, default=200)
-    parser.add_argument('--num_updates_per_iter', type=int, default=10)
+    parser.add_argument('--num_updates_per_iter', type=int, default=100)
 
     parser.add_argument('--device', type=str, default='cpu')
 

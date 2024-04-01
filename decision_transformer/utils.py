@@ -6,6 +6,8 @@ import numpy as np
 from torch.utils.data import Dataset
 from decision_transformer.d4rl_infos import REF_MIN_SCORE, REF_MAX_SCORE, D4RL_DATASET_STATS
 
+np.set_printoptions(suppress=True)
+np.set_printoptions(precision=6, linewidth=100)
 
 def discount_cumsum(x, gamma):
     disc_cumsum = np.zeros_like(x)
@@ -140,6 +142,9 @@ class D4RLTrajectoryDataset(Dataset):
             states.append(traj['observations'])
             # calculate returns to go and rescale them
             traj['returns_to_go'] = discount_cumsum(traj['rewards'], 1.0) / rtg_scale
+            if (traj['rewards'] > 0.0).sum() > 0:
+                print(traj['rewards'] > 0.0, "!!!!")
+                print(traj['rewards'], "!!!!")
 
         # used for input normalization
         states = np.concatenate(states, axis=0)
