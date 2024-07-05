@@ -271,8 +271,8 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    # parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
-    parser.add_argument('--env', type=str, default='BipedalWalker-v3')
+    parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
+    # parser.add_argument('--env', type=str, default='BipedalWalker-v3')
     parser.add_argument('--dataset', type=str, default='medium')
     parser.add_argument('--num_eval_ep', type=int, default=3)
 

@@ -76,6 +76,6 @@ def download_minari_data(env_name, dataset_id):
 
 
 if __name__ == "__main__":
-    # download_minari_data(env_name="MountainCarContinuous-v0", dataset_id="MountainCarContinuous-v0-medium-v0")
-    download_minari_data(env_name="BipedalWalker-v3", dataset_id="BipedalWalker-v3-medium-v0")
+    download_minari_data(env_name="MountainCarContinuous-v0", dataset_id="MountainCarContinuous-v0-medium-v0")
+    # download_minari_data(env_name="BipedalWalker-v3", dataset_id="BipedalWalker-v3-medium-v0")
 
