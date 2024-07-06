@@ -41,16 +41,16 @@ class PointerNetwork(nn.Module):
         encoder_states, hc = self.enc(input)                            # encoder_state: (bs, L, H)
         # encoder_states.size(): (250, 4, 512)
         encoder_states = encoder_states.transpose(1, 0)                 # (L, bs, H) = (4, 250, 512)
+        assert torch.equal(encoder_states[-1], hc.squeeze()), (encoder_states.size(), hc.size())
 
         # Decoding states initialization
         decoder_input = to_var(torch.zeros(batch_size, self.emb_size))  # (bs, embd_size) = (250, 32)
-        hidden = to_var(torch.zeros([batch_size, self.hidden_size]))    # (bs, h) = (250, 512)
-        cell_state = encoder_states[-1]                                 # (bs, h) = (250, 512)
+        hidden = encoder_states[-1]                                     # (bs, h) = (250, 512)
+        cell_state = to_var(torch.zeros([batch_size, self.hidden_size]))  # (bs, h) = (250, 512) for LSTM
 
         probs = []
 
         # Decoding
-        hidden = cell_state     # BUGGGGGG!!!!!! 이 라인이 필요함!!!!
         for i in range(self.answer_seq_len):                                        # range(4)
             if self.is_GRU:
                 hidden = self.dec(decoder_input, hidden)                            # (bs, h)
