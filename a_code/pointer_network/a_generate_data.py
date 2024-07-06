@@ -14,12 +14,16 @@ def generate_single_seq(length=30, min_len=5, max_len=10):
     max_len: maximum length of sequence
     Output:
     sequence of numbers, index of the start of greater numbers subsequence"""
-    seq_before = [(random.randint(1, 5)) for x in range(random.randint(min_len, max_len))]
-    seq_during = [(random.randint(6, 10)) for x in range(random.randint(min_len, max_len))]
-    seq_after = [random.randint(1, 5) for x in range(random.randint(min_len, max_len))]
+    seq_before = [(random.randint(1, 5)) for _ in range(random.randint(min_len, max_len))]
+    seq_during = [(random.randint(6, 10)) for _ in range(random.randint(min_len, max_len))]
+    seq_after = [random.randint(1, 5) for _ in range(random.randint(min_len, max_len))]
     seq = seq_before + seq_during + seq_after
+    # print(seq, "11111")
     seq = seq + ([0] * (length - len(seq)))
-    return (seq, len(seq_before), len(seq_before) + len(seq_during)-1)
+    # print(seq, "22222")
+    single_seq = (seq, len(seq_before), len(seq_before) + len(seq_during)-1)
+    # print(single_seq, "33333")
+    return single_seq
 
 
 def generate_set_seq(N):

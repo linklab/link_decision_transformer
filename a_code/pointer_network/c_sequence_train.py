@@ -10,19 +10,18 @@ from b_pointer_network import PointerNetwork
 def train(model, X, Y, batch_size, n_epochs):
     model.train()
     optimizer = optim.Adam(model.parameters())
-    N = X.size(0)  # bs = 9000
+    N = X.size(0)  # N = bs = 9000
     L = X.size(1)  # L = 4
 
     for epoch in range(n_epochs):
         # for i in range(len(train_batches))
         for i in range(0, N - batch_size, batch_size):
-            x = X[i: i + batch_size]  # (250, 4)
-            y = Y[i: i + batch_size]  # (250, 4)
+            x = X[i: i + batch_size]  # (bs, L) = (bs, 4)
+            y = Y[i: i + batch_size]  # (bs, M) = (bs, 4)
 
-            probs = model(x)  # (bs, M, L)
+            probs = model(x)             # (bs, M, L)
             outputs = probs.view(-1, L)  # (bs * M, L)
-            # outputs = probs.view(L, -1).t().contiguous() # (bs * M, L)
-            y = y.view(-1)    # (bs * M)
+            y = y.flatten()              # (bs * M)
             loss = F.nll_loss(outputs, y)
 
             optimizer.zero_grad()
@@ -72,7 +71,7 @@ def main():
     n_epochs = 5
     input_seq_len = 4
 
-    input, targets = generate_data.make_seq_data(total_size, input_seq_len)
+    input, targets = a_generate_data.make_seq_data(total_size, input_seq_len)
     inp_size = input_seq_len
 
     # Convert to torch tensors
