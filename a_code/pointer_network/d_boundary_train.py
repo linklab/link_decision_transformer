@@ -2,9 +2,9 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 import numpy as np
-import generate_data
-from utils import to_var
-from pointer_network import PointerNetwork
+import a_generate_data
+from e_utils import to_var
+from b_pointer_network import PointerNetwork
 
 total_size = 10000
 weight_size = 256
