@@ -49,3 +49,21 @@ def make_seq_data(n_samples, seq_len):
         data.append(input)
         labels.append(target)
     return data, labels
+
+
+if __name__ == '__main__':
+    # input, targets = make_seq_data(n_samples=10, seq_len=5)
+    # print(input)
+    # print(targets)
+
+    dataset, starts, ends = generate_set_seq(N=10)
+    targets = np.vstack((starts, ends)).T   # [total_size, 2]
+    dataset = np.array(dataset)             # [total_size, 30]
+    print(dataset)
+    print(targets)
+
+    # dataset, starts, ends = generate_set_seq(N=2)
+    # targets = np.vstack((starts, ends)).T  # [total_size, 2]
+    # dataset = np.array(dataset)  # [total_size, 30]
+    # print(dataset)
+    # print(targets)
