@@ -24,7 +24,7 @@ epoch: 2, Loss: 0.00077
 Acc: 100.00% (9000/9000)
 epoch: 4, Loss: 0.00032
 Acc: 99.99% (8999/9000)
-----Test result---
+----Validate result---
 Acc: 100.00% (1000/1000)
 ```
 
@@ -50,7 +50,7 @@ Acc: 99.96% (8996/9000)
 epoch: 4, Loss: 0.00091
 acc
 Acc: 100.00% (9000/9000)
-----Test result---
+----Validate result---
 Acc: 100.00% (1000/1000)
 ```
 

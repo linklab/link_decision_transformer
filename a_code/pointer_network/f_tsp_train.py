@@ -32,16 +32,24 @@ def train(model, dataloader, test_dataloader, batch_size, n_epochs, number_of_ci
 
         if epoch % 1 == 0:
             print('epoch: {}, Loss: {:.5f}'.format(epoch, loss.item()))
-            # for _ in range(2): # random showing results
+            # for _ in range(2):  # random showing results
             #     pick = np.random.randint(0, batch_size)
-            #     probs = probs.contiguous().view(batch_size, M, L).transpose(2, 1) # (bs, L, M)
-            #     y = y.view(batch_size, M)
-            #     print("predict: ", probs.max(1)[1][pick][0], probs.max(1)[1][pick][1],
-            #           "target  : ", y[pick][0], y[pick][1])
-            test(model, test_dataloader, is_train=True)
+            #     probs = probs.contiguous().view(batch_size, number_of_cities, number_of_cities).transpose(2, 1) # (bs, L, M)
+            #     y = target_batch.view(batch_size, number_of_cities)
+            #     print('train pred', [v.item() for v in probs.max(1)[1][pick]])
+            #     print('train label', [v.item() for v in y[pick]])
+
+            for _ in range(2):  # random showing results
+                pick = np.random.randint(0, batch_size)
+                _v, indices = torch.max(probs, dim=2)  # (bs, number_of_cities)
+                target_batch = target_batch.view(batch_size, number_of_cities)
+                print('Train pred: ', [v.item() for v in indices[pick]])
+                print('Train label:', [v.item() for v in target_batch[pick]])
+
+            validate(model, test_dataloader, is_train=True)
 
 
-def test(model, dataloader, is_train=False):
+def validate(model, dataloader, is_train=False):
     sample_batched = next(iter(dataloader))
     test_batch = to_var(sample_batched['Points'])
     target_batch = to_var(sample_batched['Solution'])
@@ -52,21 +60,22 @@ def test(model, dataloader, is_train=False):
     _v, indices = torch.max(probs, dim=2) # (bs, M)
 
     ####################################################
-    #show test examples
+    #show validate examples
     if not is_train:
         for i in range(len(indices)):
             print('-----')
-            print('test data', [v.tolist() for v in test_batch[i]])
-            print('test pred', [v.item() for v in indices[i]])
-            print('test label', [v.item() for v in target_batch[i]])
+            print('Validate Data: ', [v.tolist() for v in test_batch[i]])
+            print('Validate Pred: ', [v.item() for v in indices[i]])
+            print('Validate Label:', [v.item() for v in target_batch[i]])
             if torch.equal(target_batch[i], indices[i]):
                 print('SAME')
             if i > 20: break
     ############################################################
 
     correct_count = sum([1 if torch.equal(ind, y) else 0 for ind, y in zip(indices, target_batch)])
-    print('Acc: {:.2f}% ({}/{})'.format(correct_count/len(test_batch)*100, correct_count, len(test_batch)))
+    print('Validate Accuracy: {:.2f}% ({}/{})'.format(correct_count/len(test_batch)*100, correct_count, len(test_batch)))
     print()
+
 
 def main():
     data_size = 51200
@@ -98,8 +107,8 @@ def main():
 
     train(model, dataloader, test_dataloader, batch_size, n_epochs, number_of_cities)
 
-    print('----Test result---')
-    test(model, test_dataloader)
+    print('----Validate Result---')
+    validate(model, test_dataloader)
 
 
 if __name__ == '__main__':

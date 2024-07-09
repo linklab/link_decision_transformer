@@ -1,6 +1,7 @@
 import torch
 from torch import optim
 import torch.nn.functional as F
+import numpy as np
 import a_generate_data
 from g_utils import to_var
 from c_pointer_network import PointerNetwork
@@ -15,13 +16,13 @@ def train(model, X, Y, batch_size, n_epochs):
 
     for epoch in range(n_epochs):
         for i in range(0, N - batch_size, batch_size):
-            x = X[i: i + batch_size]  # (bs, L) = (bs, 4)
-            y = Y[i: i + batch_size]  # (bs, M) = (bs, 4)
+            train_batch = X[i: i + batch_size]  # (bs, L) = (bs, 4)
+            target_batch = Y[i: i + batch_size]  # (bs, M) = (bs, 4)
 
-            probs = model(x)             # (bs, M, L)
-            outputs = probs.view(-1, L)  # (bs * M, L)
-            y = y.flatten()              # (bs * M)
-            loss = F.nll_loss(outputs, y)
+            probs = model(train_batch)             # (bs, M, L)
+            output_batch = probs.view(-1, L)  # (bs * M, L)
+            target_batch = target_batch.flatten()              # (bs * M)
+            loss = F.nll_loss(output_batch, target_batch)
 
             optimizer.zero_grad()
             loss.backward()
@@ -29,36 +30,36 @@ def train(model, X, Y, batch_size, n_epochs):
 
         if epoch % 1 == 0:
             print('epoch: {}, Loss: {:.5f}'.format(epoch, loss.item()))
-            # for _ in range(2): # random showing results
-            #     pick = np.random.randint(0, batch_size)
-            #     probs = probs.contiguous().view(batch_size, M, L).transpose(2, 1) # (bs, L, M)
-            #     y = y.view(batch_size, M)
-            #     print("predict: ", probs.max(1)[1][pick][0], probs.max(1)[1][pick][1],
-            #           "target  : ", y[pick][0], y[pick][1])
-            test(model, X, Y, is_train=True)
+            for _ in range(2):  # random showing results
+                pick = np.random.randint(0, batch_size)
+                _v, indices = torch.max(probs, dim=2)
+                target_batch = target_batch.view(batch_size, L)
+                print('Train pred: ', [v.item() for v in indices[pick]])
+                print('Train label:', [v.item() for v in target_batch[pick]])
+            validate(model, X, Y, is_train=True)
 
 
-def test(model, X, Y, is_train=False):
+def validate(model, X, Y, is_train=False):
     probs = model(X) # probs.size(): (9000, 4, 4)
 
     # max values, max indices
     _v, indices = torch.max(probs, dim=2)   # (bs, M)
 
     ####################################################
-    # show test examples
+    # show validate examples
     if not is_train:
         for i in range(len(indices)):
             print('-----')
-            print('test data', [v.item() for v in X[i]])
-            print('test pred', [v.item() for v in indices[i]])
-            print('test label', [v.item() for v in Y[i]])
+            print('Validate Data', [v.item() for v in X[i]])
+            print('Validate Pred', [v.item() for v in indices[i]])
+            print('Validate Label', [v.item() for v in Y[i]])
             if torch.equal(Y[i], indices[i]):
                 print('SAME')
             if i > 20: break
     #############################################################
 
     correct_count = sum([1 if torch.equal(ind, y) else 0 for ind, y in zip(indices, Y)])
-    print('Acc: {:.2f}% ({}/{})'.format(correct_count / len(X) * 100, correct_count, len(X)))
+    print('Validate Accuracy: {:.2f}% ({}/{})'.format(correct_count / len(X) * 100, correct_count, len(X)))
     print()
 
 
@@ -95,8 +96,8 @@ def main():
     if torch.cuda.is_available():
         model.cuda()
     train(model, train_X, train_Y, batch_size, n_epochs)
-    print('----Test result---')
-    test(model, test_X, test_Y)
+    print('----Validate Result---')
+    validate(model, test_X, test_Y)
 
 
 if __name__ == '__main__':
