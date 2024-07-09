@@ -65,7 +65,7 @@ class PointerNetwork(nn.Module):
         else:
             decoder_input = to_var(input[:, 0, :])                            # (bs, embd_size) = (250, 32)
 
-        mask = torch.ones([batch_size, input_seq_len]).detach()
+        mask = torch.zeros([batch_size, input_seq_len]).detach()
 
         # Decoding
         for i in range(self.answer_seq_len):                                        # range(4)
@@ -85,7 +85,7 @@ class PointerNetwork(nn.Module):
             # self.vt(blend_sum).squeeze().size(): (4, 250)
             out = self.vt(blend_sum).squeeze()          # (L, bs)
             out = out.transpose(0, 1).contiguous()      # (bs, L) = (250, 4)
-            out = out + mask
+            out = out.masked_fill(mask == 1, -1e9)
             out = F.log_softmax(out, dim=-1)  # (bs, L) = (250, 4)
             probs.append(out)
 
@@ -94,11 +94,11 @@ class PointerNetwork(nn.Module):
             else:
                 _, indices = torch.max(out, dim=-1)  # len(indices) = bs
                 # indices.shape: (250,)
-                mask = mask.scatter(dim=-1, index=indices.unsqueeze(-1), value=-1e4)
+                mask = mask.scatter(dim=-1, index=indices.unsqueeze(-1), value=1)
                 # mask.shape: (250, 6)
 
-                indices = indices.view(-1, 1, 1) # 각 indices에 대해 인덱스를 3차원으로 확장한다.
-                indices = indices.expand(size=(-1, -1, input.shape[-1])) # indices를 확장하여 input 텐서의 shape과 일치시킨다.
+                indices = indices.view(-1, 1, 1) # 각 indices에 대해 인덱스를 3차원으로 확장
+                indices = indices.expand(size=(-1, -1, input.shape[-1])) # indices를 확장하여 input 텐서의 shape과 일치시킴
                 # indices.shape: [250, 1, 128]
                 # input.shape: [250, 6, 128]
 

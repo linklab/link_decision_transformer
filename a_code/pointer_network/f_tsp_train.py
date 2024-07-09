@@ -69,12 +69,12 @@ def test(model, dataloader, is_train=False):
     print()
 
 def main():
-    data_size = 512
+    data_size = 51200
     test_data_size = 100
 
     weight_size = 256
     embed_size = 128
-    batch_size = 2
+    batch_size = 256
     n_epochs = 10
 
     number_of_cities = 6
