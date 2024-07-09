@@ -69,15 +69,15 @@ def test(model, dataloader, is_train=False):
     print()
 
 def main():
-    data_size = 51200
+    data_size = 512
     test_data_size = 100
 
     weight_size = 256
     embed_size = 128
-    batch_size = 250
-    n_epochs = 1_000
+    batch_size = 2
+    n_epochs = 10
 
-    number_of_cities = 4
+    number_of_cities = 6
 
     dataset = TSPDataset(data_size=data_size, seq_len=number_of_cities)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)

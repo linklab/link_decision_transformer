@@ -85,7 +85,7 @@ class PointerNetwork(nn.Module):
             # self.vt(blend_sum).squeeze().size(): (4, 250)
             out = self.vt(blend_sum).squeeze()          # (L, bs)
             out = out.transpose(0, 1).contiguous()      # (bs, L) = (250, 4)
-            out = out * mask
+            out = out + mask
             out = F.log_softmax(out, dim=-1)  # (bs, L) = (250, 4)
             probs.append(out)
 
@@ -93,18 +93,17 @@ class PointerNetwork(nn.Module):
                 decoder_input = to_var(torch.zeros(batch_size, self.embed_size))  # (bs, embd_size) = (250, 32)
             else:
                 _, indices = torch.max(out, dim=-1)  # len(indices) = bs
+                # indices.shape: (250,)
+                mask = mask.scatter(dim=-1, index=indices.unsqueeze(-1), value=-1e4)
+                # mask.shape: (250, 6)
 
-                # new_mask = mask.clone()
-                # for i in range(new_mask.shape[0]):
-                #     new_mask[i, indices[i]] = -10_000
-                #
-                # mask = new_mask
+                indices = indices.view(-1, 1, 1) # 각 indices에 대해 인덱스를 3차원으로 확장한다.
+                indices = indices.expand(size=(-1, -1, input.shape[-1])) # indices를 확장하여 input 텐서의 shape과 일치시킨다.
+                # indices.shape: [250, 1, 128]
+                # input.shape: [250, 6, 128]
 
-                mask = mask.scatter(dim=-1, index=indices.unsqueeze(-1), value=float('-inf'))
-
-                # input: (bs, L, embed_size) --> transposed_tensor: (L, bs, embed_size)
-                sliced_tensor = input[:, indices, :].clone()  # (bs, bs, embed_size)
-                decoder_input = sliced_tensor.view(-1, batch_size, self.embed_size)[:, 0, :]  # (bs, embed_size)
+                decoder_input = input.gather(dim=1, index=indices).squeeze(dim=1)
+                # decoder_input.shape: [250, 128]
 
         probs = torch.stack(probs, dim=1)           # (bs, M, L) = (250, 4, 4)
 
