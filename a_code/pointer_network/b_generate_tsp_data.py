@@ -91,7 +91,7 @@ class TSPDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = TSPDataset(data_size=4, seq_len=5)
+    dataset = TSPDataset(data_size=100000, seq_len=5)
     dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
 
     for i_batch, sample_batched in enumerate(dataloader):

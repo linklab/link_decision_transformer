@@ -21,10 +21,10 @@ def train(model, dataloader, test_dataloader, batch_size, n_epochs, number_of_ci
             target_batch = to_var(sample_batched['Solution'])
 
             probs = model(train_batch)   # (bs, M, L) = (250, 10, 10)
-            outputs = probs.view(-1, number_of_cities)  # (bs * M, L)
+            output_batch = probs.view(-1, number_of_cities)  # (bs * M, L)
 
             target_batch = target_batch.flatten()              # (bs * M)
-            loss = F.nll_loss(outputs, target_batch)
+            loss = F.cross_entropy(output_batch, target_batch)
 
             optimizer.zero_grad()
             loss.backward()
@@ -78,15 +78,15 @@ def validate(model, dataloader, is_train=False):
 
 
 def main():
-    data_size = 51200
+    data_size = 4
     test_data_size = 100
 
     weight_size = 256
     embed_size = 128
-    batch_size = 256
-    n_epochs = 10
+    batch_size = 2
+    n_epochs = 100
 
-    number_of_cities = 6
+    number_of_cities = 5
 
     dataset = TSPDataset(data_size=data_size, seq_len=number_of_cities)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)

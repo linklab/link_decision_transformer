@@ -22,7 +22,7 @@ def train(model, X, Y, batch_size, n_epochs):
             probs = model(train_batch)             # (bs, M, L)
             output_batch = probs.view(-1, L)  # (bs * M, L)
             target_batch = target_batch.flatten()              # (bs * M)
-            loss = F.nll_loss(output_batch, target_batch)
+            loss = F.cross_entropy(output_batch, target_batch)
 
             optimizer.zero_grad()
             loss.backward()

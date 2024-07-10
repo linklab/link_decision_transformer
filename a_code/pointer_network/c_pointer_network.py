@@ -85,8 +85,8 @@ class PointerNetwork(nn.Module):
             # self.vt(blend_sum).squeeze().size(): (4, 250)
             out = self.vt(blend_sum).squeeze()          # (L, bs)
             out = out.transpose(0, 1).contiguous()      # (bs, L) = (250, 4)
-            out = out.masked_fill(mask == 1, -1e9)
-            out = F.log_softmax(out, dim=-1)  # (bs, L) = (250, 4)
+            out = out.masked_fill(mask == 1, -1e6)
+            # out = F.log_softmax(out, dim=-1)  # (bs, L) = (250, 4)
             probs.append(out)
 
             if self.decoder_input_always_zero:
